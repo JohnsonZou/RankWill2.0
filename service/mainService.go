@@ -2,7 +2,6 @@ package service
 
 import (
 	"net/http"
-	"strconv"
 	"sync"
 	"time"
 )
@@ -41,24 +40,15 @@ func (contest *Contest) handlePages(client *http.Client, ch chan int) error {
 		}
 		contest.rankPages[pageNum] = page
 		for _, u := range page.Total_Rank {
-
+			if handleUserInfoErr := u.handleUserRankInfo(client); handleUserInfoErr != nil {
+				return handleUserInfoErr
+			}
 		}
 	}
 	return nil
 }
 func (user userRankInfo) handleUserRankInfo(client *http.Client) error {
-	if user.DataRegion == "US" {
-		uinfo, queryRatingErr := I18NQueryUserCurrentRating(client, user.Username)
-		if queryRatingErr != nil {
-			return queryRatingErr
-		}
-		//redis cli get
-		redisStrKey := strconv.Itoa(int(user.ContestId)) + "#" + user.Username
-		redisStrVal := strconv.FormatFloat(uinfo.Rating, 'f', 3, 64)
-
-	}
-	if user.DataRegion == "CN" {
-		uinfo, err := user.QueryUserCurrentRating(client)
-	}
-	return nil
+	//!!! to do
+	_, queryRatingErr := user.QueryAndSaveUserCurrentRating(client)
+	return queryRatingErr
 }
