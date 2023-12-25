@@ -1,6 +1,10 @@
 package service
 
 const (
+	maxGoroutineNum = 15
+)
+
+const (
 	I18N_LCGraphQLURL                         = "https://leetcode.com/graphql/"
 	I18N_UserRatingGraphQLQueryPostBodyPrefix = "{\"query\":\"\\n    query userContestRankingInfo($username: String!) {\\n  userContestRanking(username: $username) {\\n rating\\n   attendedContestsCount\\n }\\n \\n}\\n\",\"variables\":{\"username\":\""
 	I18N_UserRatingGraphQLQueryPostBodySuffix = "\"}}"

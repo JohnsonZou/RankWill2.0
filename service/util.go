@@ -1,16 +1,22 @@
 package service
 
 import (
+	"log"
 	"net/http"
 	"strings"
 	"time"
 )
 
 func GenPostReq(url string, body string) (*http.Request, error) {
-	req, err := http.NewRequest("POST", url, strings.NewReader(body))
+	var req *http.Request
+	retryErr := Retry(100, 10*time.Millisecond, func() error {
+		var err error
+		req, err = http.NewRequest("POST", url, strings.NewReader(body))
+		return err
+	})
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Cookie", cookie)
-	return req, err
+	return req, retryErr
 }
 
 func Retry(maxTime int, gapDuration time.Duration, f func() error) error {
@@ -40,5 +46,13 @@ func GenNewClient() http.Client {
 	return http.Client{
 		Transport: t,
 		Timeout:   3 * time.Second,
+	}
+}
+
+func closeResponseBody(res *http.Response) {
+	if err := Retry(5, 100*time.Millisecond, func() error {
+		return res.Body.Close()
+	}); err != nil {
+		log.Printf("%v\n", err.Error())
 	}
 }

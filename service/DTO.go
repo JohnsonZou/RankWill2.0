@@ -1,16 +1,17 @@
 package service
 
-type LCUserRatingGraphQLResultInfo struct {
-	Rating                float64 `json:"rating"`
-	AttendedContestsCount int16   `json:"attendedContestsCount"`
+type Contest struct {
+	contestName   string
+	contestantNum int32
+	pageNum       int32
+	rankPages     map[int]*RankPage
 }
-type LCUserRatingGraphQLResultData struct {
-	UserContestRanking LCUserRatingGraphQLResultInfo `json:"userContestRanking"`
+type RankPage struct {
+	Time        float64                 `json:"time"`
+	Submissions []map[string]submission `json:"submissions"`
+	Total_Rank  []userRankInfo          `json:"total_rank"`
+	UserNum     int32                   `json:"user_num"`
 }
-type LCUserRatingGraphQLResult struct {
-	Data LCUserRatingGraphQLResultData `json:"data"`
-}
-
 type submission struct {
 	Id           int64  `json:"id"`
 	Date         int64  `json:"date"`
@@ -22,7 +23,7 @@ type submission struct {
 	FailCount    int16  `json:"fail_count"`
 	Lang         string `json:"lang"`
 }
-type userRank struct {
+type userRankInfo struct {
 	ContestId     int16  `json:"contest_id"`
 	Username      string `json:"username"`
 	UserSlug      string `json:"user_slug"`
@@ -33,10 +34,4 @@ type userRank struct {
 	FinishTime    int64  `json:"finish_time"`
 	GlobalRanking int32  `json:"global_ranking"`
 	DataRegion    string `json:"data_region"`
-}
-type RankPage struct {
-	Time        float64                 `json:"time"`
-	Submissions []map[string]submission `json:"submissions"`
-	Total_Rank  []userRank              `json:"total_rank"`
-	UserNum     int32                   `json:"user_num"`
 }
