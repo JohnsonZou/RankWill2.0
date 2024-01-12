@@ -1,4 +1,4 @@
-package service
+package util
 
 import (
 	"log"
@@ -17,16 +17,6 @@ func GenPostReq(url string, body string) (*http.Request, error) {
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Cookie", cookie)
 	return req, retryErr
-}
-
-func Retry(maxTime int, gapDuration time.Duration, f func() error) error {
-	err := f()
-	for err != nil && maxTime > 1 {
-		maxTime--
-		time.Sleep(gapDuration)
-		err = f()
-	}
-	return err
 }
 
 func GenGetReq(url string) (*http.Request, error) {
@@ -48,8 +38,7 @@ func GenNewClient() http.Client {
 		Timeout:   3 * time.Second,
 	}
 }
-
-func closeResponseBody(res *http.Response) {
+func CloseResponseBody(res *http.Response) {
 	if err := Retry(5, 100*time.Millisecond, func() error {
 		return res.Body.Close()
 	}); err != nil {

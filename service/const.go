@@ -1,4 +1,10 @@
-package service
+package fetchService
+
+import "errors"
+
+var (
+	errStatusCodeNot200 = errors.New("status code not 200")
+)
 
 const (
 	maxGoroutineNum = 15
@@ -12,8 +18,8 @@ const (
 	CN_LCGraphQLURL                         = "https://leetcode.cn/graphql/noj-go/"
 	CN_UserRatingGraphQLQueryPostBodyPrefix = "{\"query\":\"query userContestRankingInfo($userSlug: String!) {  userContestRanking(userSlug: $userSlug) {     rating    attendedContestsCount  }  }    \",\"variables\":{\"userSlug\":\""
 	CN_UserRatingGraphQLQueryPostBodySuffix = "\"}}"
-)
 
-const (
-	cookie = "csrftoken=1TCqj8frSz5I2tPQhFSbLhyx9vWXFhPAxdrap9ezE5GTHC3lEWslq4ZUr9bmdxKO"
+	I18N_LCContestRankQueryPrefix = "https://leetcode.com/contest/api/ranking/"
+	I18N_LCContestRankQueryMidfix = "/?pagination="
+	I18N_LCContestRankQuerySuffix = "&region=global"
 )

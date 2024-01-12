@@ -1,7 +1,8 @@
 package service
 
 import (
-	"RankWillServer/model"
+	"RankWillServer/util"
+	"context"
 	"encoding/json"
 	"errors"
 	"log"
@@ -20,25 +21,25 @@ func buildI18NUserRatingGraphQLQueryPostBody(userName string) string {
 }
 func (user userRankInfo) buildUserRatingGraphQLQueryPostRequest() (*http.Request, error) {
 	if user.DataRegion == "CN" {
-		return GenPostReq(CN_LCGraphQLURL, buildCNUserRatingGraphQLQueryPostBody(user.Username))
+		return util.GenPostReq(CN_LCGraphQLURL, buildCNUserRatingGraphQLQueryPostBody(user.Username))
 	} else {
-		return GenPostReq(I18N_LCGraphQLURL, buildI18NUserRatingGraphQLQueryPostBody(user.Username))
+		return util.GenPostReq(I18N_LCGraphQLURL, buildI18NUserRatingGraphQLQueryPostBody(user.Username))
 	}
 }
-func (user *userRankInfo) QueryUserCurrentRating(client *http.Client) (userInfo *model.LCUserInfo, err error) {
-	bodyStr := buildI18NUserRatingGraphQLQueryPostBody(user.Username)
-	req, genReqErr := GenPostReq(I18N_LCGraphQLURL, bodyStr)
-
+func (user *userRankInfo) QueryUserCurrentRating(ctx context.Context) (*LCUserInfo, error) {
+	req, genReqErr := user.buildUserRatingGraphQLQueryPostRequest()
+	client := util.GetHttpClient(ctx)
 	if genReqErr != nil {
+		//to fix
 		log.Fatalf("%v\n", genReqErr.Error())
 		return nil, genReqErr
 	}
 	var res *http.Response
-	var queryResult model.LCUserRatingGraphQLResult
-	if retryErr := Retry(100, 500*time.Millisecond, func() error {
+	var queryResult LCUserRatingGraphQLResult
+	if retryErr := util.Retry(100, 500*time.Millisecond, func() error {
 		var err error
 		res, err = client.Do(req)
-		defer closeResponseBody(res)
+		defer util.CloseResponseBody(res)
 		if err != nil {
 			log.Printf("%v\n", err.Error())
 			return err
@@ -53,18 +54,20 @@ func (user *userRankInfo) QueryUserCurrentRating(client *http.Client) (userInfo 
 	}); retryErr != nil {
 		log.Fatalf("%v\n", retryErr)
 	}
-	userInfo.UserName = user.Username
-	userInfo.Rating = queryResult.Data.UserContestRanking.Rating
-	userInfo.AttendedContestsCount = queryResult.Data.UserContestRanking.AttendedContestsCount
-	return userInfo, nil
+	return &LCUserInfo{
+		UserName:              user.Username,
+		UserSlug:              user.UserSlug,
+		Rating:                queryResult.Data.UserContestRanking.Rating,
+		AttendedContestsCount: queryResult.Data.UserContestRanking.AttendedContestsCount,
+	}, nil
 }
 
-func buildQueryContestRankByNameAndPageURL(contestName string, pageNum int16) string {
-	return "https://leetcode.com/contest/api/ranking/" + contestName + "/?pagination=" +
-		strconv.Itoa(int(pageNum)) + "&region=global"
+func buildQueryContestRankByNameAndPageURL(contestName string, pageNum int) string {
+	return I18N_LCContestRankQueryPrefix + contestName + I18N_LCContestRankQueryMidfix +
+		strconv.Itoa(pageNum) + I18N_LCContestRankQuerySuffix
 }
-func (contest *Contest) I18NQueryContestantNumByContestName(client *http.Client) error {
-	page1, err := contest.I18NQueryContestRankByPage(client, 1)
+func (contest *Contest) I18NQueryContestantNumByContestName(ctx context.Context) error {
+	page1, err := contest.I18NQueryContestRankByPage(ctx, 1)
 	if err != nil {
 		return err
 	}
@@ -74,16 +77,17 @@ func (contest *Contest) I18NQueryContestantNumByContestName(client *http.Client)
 	contest.contestantNum = page1.UserNum
 	return nil
 }
-func (contest *Contest) I18NQueryContestRankByPage(client *http.Client, pageNum int16) (*RankPage, error) {
+func (contest *Contest) I18NQueryContestRankByPage(ctx context.Context, pageNum int) (*RankPage, error) {
+	client := util.GetHttpClient(ctx)
 	result := &RankPage{}
 	url := buildQueryContestRankByNameAndPageURL(contest.contestName, pageNum)
-	req, genReqErr := GenGetReq(url)
+	req, genReqErr := util.GenGetReq(url)
 	if genReqErr != nil {
 		log.Fatalf("%v\n", genReqErr.Error())
 		return nil, genReqErr
 	}
 	var res *http.Response
-	queryErr := Retry(100, 300*time.Millisecond, func() error {
+	queryErr := util.Retry(100, 300*time.Millisecond, func() error {
 		var err error
 		res, err = client.Do(req)
 		if res.StatusCode != 200 {
