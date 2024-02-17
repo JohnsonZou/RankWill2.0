@@ -19,7 +19,7 @@ func buildI18NUserRatingGraphQLQueryPostBody(userName string) string {
 	return I18N_UserRatingGraphQLQueryPostBodyPrefix +
 		userName + I18N_UserRatingGraphQLQueryPostBodySuffix
 }
-func (user userRankInfo) buildUserRatingGraphQLQueryPostRequest() (*http.Request, error) {
+func (user *userRankInfo) buildUserRatingGraphQLQueryPostRequest() (*http.Request, error) {
 	if user.DataRegion == "CN" {
 		return util.GenPostReq(CN_LCGraphQLURL, buildCNUserRatingGraphQLQueryPostBody(user.Username))
 	} else {
@@ -28,6 +28,7 @@ func (user userRankInfo) buildUserRatingGraphQLQueryPostRequest() (*http.Request
 }
 func (user *userRankInfo) QueryUserCurrentRating(ctx context.Context) (*LCUserInfo, error) {
 	req, genReqErr := user.buildUserRatingGraphQLQueryPostRequest()
+
 	client := util.GetHttpClient(ctx)
 	if genReqErr != nil {
 		//to fix

@@ -71,7 +71,6 @@ func (user *userRankInfo) handleUserRankInfo(ctx context.Context) error {
 	//!!! to do
 	rdb := util.GetRedisClient(ctx)
 	curContestSKey := buildRedisContestantSKey(user.ContestId, user.Username)
-
 	exist, err := rdb.Exists(curContestSKey).Result()
 	if err != nil {
 		return err

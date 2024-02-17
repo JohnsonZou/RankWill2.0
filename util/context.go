@@ -2,10 +2,9 @@ package util
 
 import (
 	"context"
-	"net/http"
-
 	"github.com/go-redis/redis"
 	"github.com/spf13/viper"
+	"net/http"
 )
 
 func GetHttpClient(ctx context.Context) *http.Client {
@@ -34,10 +33,13 @@ func InitRedisClient(ctx context.Context) error {
 	if ctx.Value(redisClientKey) != nil {
 		return nil
 	}
-	viper.SetConfigFile("../redisConfig.yaml")
+	viper.SetConfigName("redisConfig")
+	viper.SetConfigType("yaml")
+	viper.AddConfigPath("./")
 	if err := viper.ReadInConfig(); err != nil {
 		return err
 	}
+
 	rdb := redis.NewClient(&redis.Options{
 		Addr:     viper.GetString("addr"),
 		Password: viper.GetString("password"),

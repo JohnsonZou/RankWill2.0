@@ -1,4 +1,4 @@
-package fetchService
+package service
 
 import "errors"
 
