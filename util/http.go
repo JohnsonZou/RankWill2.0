@@ -14,28 +14,31 @@ func GenPostReq(url string, body string) (*http.Request, error) {
 		req, err = http.NewRequest("POST", url, strings.NewReader(body))
 		return err
 	})
-	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Cookie", cookie)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("User-Agent", UserAgent)
 	return req, retryErr
 }
 
 func GenGetReq(url string) (*http.Request, error) {
 	req, err := http.NewRequest("GET", url, nil)
 
-	req.Header.Set("Accept", "*/*")
-	req.Header.Set("Cookie", cookie)
+	//req.Header.Set("Accept", "*/*")
+	//req.Header.Set("Cookie", cookie)
+	//req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("User-Agent", UserAgent)
 	return req, err
 }
-func GenNewClient() http.Client {
+func GenNewClient() *http.Client {
 	t := http.DefaultTransport.(*http.Transport).Clone()
 
 	t.MaxIdleConns = 100
 	t.MaxConnsPerHost = 100
 	t.MaxIdleConnsPerHost = 100
 	t.DisableKeepAlives = true
-	return http.Client{
+	return &http.Client{
 		Transport: t,
-		Timeout:   3 * time.Second,
+		Timeout:   30 * time.Second,
 	}
 }
 func CloseResponseBody(res *http.Response) {

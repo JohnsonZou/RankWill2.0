@@ -4,8 +4,6 @@ import (
 	"RankWillServer/util"
 	"context"
 	"log"
-	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -14,92 +12,142 @@ import (
 
 func (contest *Contest) HandleContest(ctx context.Context) error {
 	ch := util.GetChanelFromCtxByKey(ctx, util.ContestChanelKey)
+	contest.rankPages = make(map[int]*RankPage)
 	getContestantNumErr := util.Retry(10, 500*time.Microsecond, func() error {
-		return contest.I18NQueryContestantNumByContestName(ctx)
+		return contest.QueryContestantNumByContestName(ctx)
 	})
 	if getContestantNumErr != nil {
 		return getContestantNumErr
 	}
 	contest.pageNum = (contest.contestantNum-1)/25 + 1
-	for i := 1; i <= int(contest.pageNum); i++ {
+
+	for i := 1; i <= contest.pageNum; i++ {
 		ch <- i
 	}
 	wg := sync.WaitGroup{}
 	for i := 0; i < maxGoroutineNum; i++ {
+		wg.Add(1)
 		go func(ctx context.Context, contest *Contest) {
-			wg.Add(1)
-			ch := util.GetChanelFromCtxByKey(ctx, util.ContestChanelKey)
+			chGet := util.GetChanelFromCtxByKey(ctx, util.ContestChanelKey)
 			for {
-				pageNum, ok := <-ch
+				ok := true
+				var pageNum int
+				select {
+				case pageNum = <-chGet:
+				default:
+					ok = false
+				}
 				if !ok {
 					break
 				}
-				page, queryRankPageErr := contest.I18NQueryContestRankByPage(ctx, pageNum)
+				page, queryRankPageErr := contest.QueryContestRankByPage(ctx, pageNum)
 				if queryRankPageErr != nil {
-					//to fix !!! fatal
-					log.Fatalf("[Error][QueryPage]Contest Name: %s, Page: %d", contest.contestName, pageNum)
+					log.Printf("[Error][QueryPage]Contest Name: %s, Page: %d", contest.TitleSlug, pageNum)
+				} else {
+					log.Println("[Success]Finish page ", pageNum)
 				}
 				contest.rankPages[pageNum] = page
-				for _, u := range page.Total_Rank {
-					if handleUserInfoErr := u.handleUserRankInfo(ctx); handleUserInfoErr != nil {
-						log.Fatalf("[Error][QueryUser]Contest Name: %s, Page: %d, Username: %s", contest.contestName, pageNum, u.Username)
-					}
-				}
+
 			}
 			wg.Done()
 		}(ctx, contest)
 	}
 	wg.Wait()
+	return contest.HandlePages(ctx)
+}
+func (contest *Contest) HandlePages(ctx context.Context) error {
+	totalQueue := util.Queue{}
+	reqQueue := make(chan userRankInfo, 100)
+	for _, p := range contest.rankPages {
+		for _, u := range p.TotalRank {
+			//bugfix
+			totalQueue.Push(u)
+		}
+	}
+	waitTime := 0
+	for !totalQueue.Empty() {
+		if waitTime > 0 {
+			log.Println("[Sleep] for ", waitTime, " seconds.")
+		}
+		time.Sleep(time.Duration(waitTime) * time.Second)
+		waitTime = 0
+		wg := sync.WaitGroup{}
+		for i := 0; i < maxGoroutineNum; i++ {
+			if totalQueue.Empty() {
+				break
+			}
+			reqQueue <- totalQueue.Pop().(userRankInfo)
+		}
+		for i := 0; i < maxGoroutineNum; i++ {
+			wg.Add(1)
+			go func() {
+				select {
+				case u := <-reqQueue:
+					err := u.handleUserRankInfo(ctx)
+					if err != nil {
+						totalQueue.Push(u)
+						waitTime++
+					}
+				default:
+					break
+				}
+				wg.Done()
+			}()
+		}
+		wg.Wait()
+	}
 	return nil
 }
-func buildRedisContestantSKey(contestID int, uname string) string {
-	return strconv.Itoa(contestID) + "###" + uname
-}
-func buildRedisContestantSVal(rating float64, attendedContestCount int) string {
-	return strconv.FormatFloat(rating, 'f', -1, 64) + "#" + strconv.Itoa(attendedContestCount)
-}
-func parseContestSVal(key string) (rating float64, attendedContestCount int64, err error) {
-	strArr := strings.Split(key, "#")
-	rating, err = strconv.ParseFloat(strArr[0], 64)
-	if err != nil {
-		return
-	}
-	attendedContestCount, err = strconv.ParseInt(strArr[1], 10, 32)
-	return
-}
+
 func (user *userRankInfo) handleUserRankInfo(ctx context.Context) error {
-	//!!! to do
-	rdb := util.GetRedisClient(ctx)
-	curContestSKey := buildRedisContestantSKey(user.ContestId, user.Username)
-	exist, err := rdb.Exists(curContestSKey).Result()
-	if err != nil {
-		return err
-	}
-	if exist > 0 {
+	err := user.getUserFetchRatingInfo(ctx)
+	if err != redis.Nil {
+		log.Println("[Fetched]", user.UserSlug)
 		return nil
 	}
-	lastContestSKey := buildRedisContestantSKey(user.ContestId-1, user.Username)
-	lastContestVal, getErr := rdb.Get(lastContestSKey).Result()
-	var curContestRating float64
-	var curContestAC int
-	if getErr == nil {
-		rating, attendContestCount, parseErr := parseContestSVal(lastContestVal)
-		if parseErr != nil {
-			log.Printf("[Redis]Contest Val Parse fail. err: %v", parseErr)
-		}
-		curContestAC = int(attendContestCount) + 1
-		curContestRating = rating
-	} else if getErr != redis.Nil {
-		return getErr
+	var uLast userRankInfo
+	uLast = *user
+	uLast.ContestId -= 1
+	err = uLast.getUserPredictedRatingInfo(ctx)
+	if err == nil {
+		user.AttendedContestsCount = uLast.AttendedContestsCount
+		user.Rating = uLast.Rating
+	} else if err != redis.Nil {
+		return err
 	} else {
-		info, queryRatingErr := user.QueryUserCurrentRating(ctx)
-		if queryRatingErr != nil {
-			return queryRatingErr
+		err = user.QueryUserCurrentRating(ctx)
+		if err != nil {
+			return err
 		}
-		curContestRating = info.Rating
-		curContestAC = info.AttendedContestsCount
+		if user.AttendedContestsCount == 0 {
+			user.Rating = defaultUserRating //default
+		}
 	}
+	return user.setUserFetchRatingInfo(ctx)
+}
 
-	_, setErr := rdb.SetNX(curContestSKey, buildRedisContestantSVal(curContestRating, curContestAC), 14*time.Hour).Result()
-	return setErr
+func FindAndRegisterContest(ctx context.Context) error {
+	rdb := util.GetRedisClient(ctx)
+	contests, err := CNQueryUpComingContest(ctx)
+	if err != nil {
+		panic(err)
+	}
+	for _, c := range contests {
+
+		ContestKey := util.BuildRedisContestKey(c.TitleSlug)
+		exist, existErr := rdb.Exists(ContestKey).Result()
+		if existErr != nil {
+			log.Printf("[Redis][FindAndRegisterContest] check exist fail!!!,err :%v", existErr.Error())
+			return err
+		}
+		if exist <= 0 {
+			rdb.Set(ContestKey, "key", 0)
+			err = util.SendMsgToDelayQueueByUnixTime(ctx, c.TitleSlug, c.StartTime)
+			if err != nil {
+				log.Printf("[Redis][FindAndRegisterContest] send msg to mq fail!!!,err :%v", err.Error())
+			}
+
+		}
+	}
+	return err
 }
