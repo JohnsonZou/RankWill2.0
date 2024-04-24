@@ -50,14 +50,11 @@ func (contest *Contest) HandleContestTest(ctx context.Context) error {
 				//before 2024 02 24
 				//after query per page, query users in the page
 
-				//for _, u := range page.TotalRank {
-				//	count++
-				//	if handleUserInfoErr := u.handleUserRankInfo(ctx); handleUserInfoErr != nil {
-				//		log.Printf("[Error][QueryUser]Contest Name: %s, Page: %d, Username: %s", contest.TitleSlug, pageNum, u.Username)
-				//	}
-				//	t := time.Now().Unix()
-				//	log.Println("[Speed]", (count)/(t-t0+1))
-				//}
+				for _, u := range page.TotalRank {
+					if handleUserInfoErr := u.handleUserRankInfo(ctx); handleUserInfoErr != nil {
+						log.Printf("[Error][QueryUser]Contest Name: %s, Page: %d, Username: %s", contest.TitleSlug, pageNum, u.Username)
+					}
+				}
 			}
 			wg.Done()
 		}(ctx, contest)

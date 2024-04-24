@@ -6,7 +6,8 @@ import (
 	"time"
 )
 
-func T() {
+func Selenium() {
+
 	caps := selenium.Capabilities{
 		"browserName": "MicrosoftEdge",
 		"goog:chromeOptions": map[string]interface{}{
