@@ -1,10 +1,9 @@
 package main
 
 import (
-	"RankWillServer/service"
-	"RankWillServer/test"
-	"RankWillServer/util"
-	"context"
+	"RankWillServer/backend"
+	"RankWillServer/dao"
+	"RankWillServer/web_server"
 	"fmt"
 	"log"
 	"os"
@@ -14,51 +13,21 @@ import (
 
 func init() {
 	log.SetFlags(log.Llongfile | log.Lmicroseconds | log.Ldate)
-}
-func initContext(ctx context.Context) context.Context {
-	ContestChanel := make(chan int, 2000)
-	ctx = context.WithValue(ctx, util.ContestChanelKey, ContestChanel)
-	ctx, err := util.InitRedisClient(ctx)
+	logfile, err := os.OpenFile("app.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err != nil {
-		panic(err)
+		log.Fatalf("Failed to open log file: %v", err)
 	}
-	ctx = util.InitMainScheduler(ctx)
-
-	cli := util.GenNewClient()
-	ctx = util.SetHttpClient(ctx, cli)
-	ctx, err = util.InitMQChanel(ctx)
-
-	if err != nil {
-		panic(err)
-	}
-	ctx = util.InitTimer(ctx)
-	return ctx
+	log.SetOutput(logfile)
 }
 func main() {
+	_ = dao.InitDB()
 
-	ctx := initContext(context.Background())
+	go backend.Serve()
 
-	go service.RoutineService(ctx)
-	test.MainTest(ctx)
+	go web_server.GinRun()
+	//test.MainTest(ctx)
+
 	sig := make(chan os.Signal)
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGKILL)
 	fmt.Println(<-sig)
-}
-
-func t(ctx context.Context) {
-	ch := util.GetMainMQChanel(ctx)
-	msgs, _ := ch.Consume(
-		"delayedQueue",
-		"",
-		true,
-		false,
-		false,
-		false,
-		nil,
-	)
-	for d := range msgs {
-		log.Printf("[MQ]Received a message: %s", d.Body)
-		//contestTile := d.Body
-
-	}
 }

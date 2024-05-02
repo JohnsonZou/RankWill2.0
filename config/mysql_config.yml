@@ -1,0 +1,7 @@
+driver_name: mysql
+port: 3306
+host: localhost
+database: rankwill
+username: root
+password: JohnsonZou
+charset: utf8mb4
