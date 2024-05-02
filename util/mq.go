@@ -3,15 +3,16 @@ package util
 import (
 	"context"
 	"errors"
-	"github.com/spf13/viper"
-	"github.com/streadway/amqp"
 	"log"
 	"time"
+
+	"github.com/spf13/viper"
+	"github.com/streadway/amqp"
 )
 
 func InitMQChanel(ctx context.Context) (context.Context, error) {
 
-	viper.SetConfigName("rabbitmqconfig")
+	viper.SetConfigName("rabbitmq_config")
 	viper.SetConfigType("yaml")
 	viper.AddConfigPath("./")
 	if err := viper.ReadInConfig(); err != nil {

@@ -2,14 +2,15 @@ package util
 
 import (
 	"context"
-	"github.com/go-co-op/gocron"
-	"github.com/go-redis/redis"
-	"github.com/spf13/viper"
-	"github.com/streadway/amqp"
-	"log"
 	"net/http"
+	"sync"
 	"time"
+
+	"github.com/go-co-op/gocron"
+	"github.com/streadway/amqp"
 )
+
+var lock sync.Mutex
 
 func GetHttpClient(ctx context.Context) *http.Client {
 	cli := ctx.Value(httpClientKey)
@@ -61,36 +62,6 @@ func GetMainScheduler(ctx context.Context) *gocron.Scheduler {
 	}
 	return nil
 }
-func InitRedisClient(ctx context.Context) (context.Context, error) {
-	if ctx.Value(RedisClientKey) != nil {
-		return ctx, nil
-	}
-	viper.SetConfigName("redisConfig")
-	viper.SetConfigType("yaml")
-	viper.AddConfigPath("./")
-	if err := viper.ReadInConfig(); err != nil {
-		return ctx, err
-	}
-
-	rdb := redis.NewClient(&redis.Options{
-		Addr:     viper.GetString("addr"),
-		Password: viper.GetString("password"),
-		DB:       viper.GetInt("db"),
-	})
-	if _, err := rdb.Ping().Result(); err != nil {
-		log.Println(err)
-		return ctx, err
-	}
-	return context.WithValue(ctx, RedisClientKey, rdb), nil
-}
-func GetRedisClient(ctx context.Context) *redis.Client {
-	cli := ctx.Value(RedisClientKey)
-	res, ok := cli.(*redis.Client)
-	if ok {
-		return res
-	}
-	return nil
-}
 
 func InitTimer(ctx context.Context) context.Context {
 	cntMap := make(map[string]int)
@@ -98,8 +69,13 @@ func InitTimer(ctx context.Context) context.Context {
 }
 
 func AddCounterAndGetSpeed(ctx context.Context) (float64, int) {
-	deltaT := time.Now().UnixMilli() - ctx.Value(StartTimeKey).(int64)
 	cnt := ctx.Value(QueryCounterKey).(map[string]int)
+
+	lock.Lock()
 	cnt[QueryCounterKey]++
-	return 1000 * float64(cnt[QueryCounterKey]) / float64(deltaT), cnt[QueryCounterKey]
+	tmp := cnt[QueryCounterKey]
+	lock.Unlock()
+
+	deltaT := time.Now().UnixMilli() - ctx.Value(StartTimeKey).(int64)
+	return 1000 * float64(tmp) / float64(deltaT), tmp
 }

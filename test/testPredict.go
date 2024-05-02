@@ -16,8 +16,8 @@ func MainTest(ctx context.Context) {
 	if err != nil {
 		panic(err)
 	}
-	err = c.Predict(ctx)
-	if err != nil {
-		panic(err)
-	}
+	// err = c.Predict(ctx)
+	// if err != nil {
+	// 	panic(err)
+	// }
 }

@@ -43,6 +43,9 @@ func GenNewClient() *http.Client {
 }
 func CloseResponseBody(res *http.Response) {
 	if err := Retry(5, 100*time.Millisecond, func() error {
+		if res == nil || res.Body == nil {
+			return nil
+		}
 		return res.Body.Close()
 	}); err != nil {
 		log.Printf("%v\n", err.Error())

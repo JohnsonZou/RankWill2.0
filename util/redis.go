@@ -1,9 +1,45 @@
 package util
 
 import (
+	"context"
+	"log"
 	"strconv"
 	"strings"
+
+	"github.com/go-redis/redis"
+	"github.com/spf13/viper"
 )
+
+func InitRedisClient(ctx context.Context) (context.Context, error) {
+	if ctx.Value(RedisClientKey) != nil {
+		return ctx, nil
+	}
+	viper.SetConfigName("redis_config")
+	viper.SetConfigType("yaml")
+	viper.AddConfigPath("./")
+	if err := viper.ReadInConfig(); err != nil {
+		return ctx, err
+	}
+
+	rdb := redis.NewClient(&redis.Options{
+		Addr:     viper.GetString("addr"),
+		Password: viper.GetString("password"),
+		DB:       viper.GetInt("db"),
+	})
+	if _, err := rdb.Ping().Result(); err != nil {
+		log.Println(err)
+		return ctx, err
+	}
+	return context.WithValue(ctx, RedisClientKey, rdb), nil
+}
+func GetRedisClient(ctx context.Context) *redis.Client {
+	cli := ctx.Value(RedisClientKey)
+	res, ok := cli.(*redis.Client)
+	if ok {
+		return res
+	}
+	return nil
+}
 
 func BuildRedisContestKey(contestName string) string {
 	return "ContestKey###" + contestName

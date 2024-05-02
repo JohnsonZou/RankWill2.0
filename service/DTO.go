@@ -1,5 +1,7 @@
 package service
 
+import "sync"
+
 type Contest struct {
 	Title           string `json:"title"`
 	TitleSlug       string `json:"titleSlug"`
@@ -9,6 +11,7 @@ type Contest struct {
 	contestantNum   int
 	pageNum         int
 	rankPages       map[int]*RankPage
+	Lock            sync.Mutex
 }
 type RankPage struct {
 	Time        float64                 `json:"time"`

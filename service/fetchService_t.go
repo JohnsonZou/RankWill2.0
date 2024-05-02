@@ -18,8 +18,9 @@ func (contest *Contest) HandleContestTest(ctx context.Context) error {
 		return getContestantNumErr
 	}
 	contest.pageNum = (contest.contestantNum-1)/25 + 1
+
+	contest.pageNum = 50
 	log.Println("pagenum :", contest.pageNum)
-	contest.pageNum = 30
 	for i := 1; i <= contest.pageNum; i++ {
 		ch <- i
 	}
@@ -45,16 +46,9 @@ func (contest *Contest) HandleContestTest(ctx context.Context) error {
 				} else {
 					log.Println("[Success]Finish page ", pageNum)
 				}
+				contest.Lock.Lock()
 				contest.rankPages[pageNum] = page
-
-				//before 2024 02 24
-				//after query per page, query users in the page
-
-				for _, u := range page.TotalRank {
-					if handleUserInfoErr := u.handleUserRankInfo(ctx); handleUserInfoErr != nil {
-						log.Printf("[Error][QueryUser]Contest Name: %s, Page: %d, Username: %s", contest.TitleSlug, pageNum, u.Username)
-					}
-				}
+				contest.Lock.Unlock()
 			}
 			wg.Done()
 		}(ctx, contest)

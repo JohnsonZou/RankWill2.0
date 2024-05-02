@@ -3,8 +3,9 @@ package service
 import (
 	"RankWillServer/util"
 	"context"
-	"github.com/go-redis/redis"
 	"time"
+
+	"github.com/go-redis/redis"
 )
 
 func (user *userRankInfo) setUserFetchRatingInfo(ctx context.Context) error {
@@ -17,7 +18,6 @@ func (user *userRankInfo) setUserFetchRatingInfo(ctx context.Context) error {
 func (user *userRankInfo) getUserFetchRatingInfo(ctx context.Context) error {
 	rdb := util.GetRedisClient(ctx)
 	SKey := util.BuildRedisFetchedContestantSKey(user.ContestId, user.Username)
-
 	val, err := rdb.Get(SKey).Result()
 	if err == redis.Nil {
 		return err
