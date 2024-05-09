@@ -1,4 +1,4 @@
 *.yaml
 *.log
 *.yml
-/config/*
+./config/*.yml
