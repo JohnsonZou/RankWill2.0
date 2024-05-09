@@ -2,5 +2,5 @@
 *.log
 *.yml
 ./config/*.yml
-**/mysql_config.yml
-**/web_server_config.yml
+config/mysql_config.yml
+config/web_server_config.yml
