@@ -8,7 +8,7 @@ import (
 	"context"
 )
 
-func initContext(ctx context.Context) context.Context {
+func InitContext(ctx context.Context) context.Context {
 	ContestChanel := make(chan int, 2000)
 	ctx = context.WithValue(ctx, util.ContestChanelKey, ContestChanel)
 	ctx, err := myredis.InitRedisClient(ctx)
@@ -29,7 +29,7 @@ func initContext(ctx context.Context) context.Context {
 }
 
 func Serve() {
-	ctx := initContext(context.Background())
+	ctx := InitContext(context.Background())
 	go service.RoutineService(ctx)
 	go service.ConsumeMQMsg(ctx)
 }

@@ -25,7 +25,15 @@ func main() {
 	go backend.Serve()
 
 	go web_server.GinRun()
-	//test.MainTest(ctx)
+
+	//go func() {
+	//	c := model.Contest{
+	//		TitleSlug: "weekly-contest-396",
+	//	}
+	//	ctx := backend.InitContext(context.Background())
+	//	_ = service.FetchContest(ctx, &c)
+	//	_ = service.Predict(ctx, &c)
+	//}()
 
 	sig := make(chan os.Signal)
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGKILL)

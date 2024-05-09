@@ -34,7 +34,6 @@ func InsertIntoDB(contest *model.Contest) {
 	contestName := contest.TitleSlug
 	for _, p := range contest.RankPages {
 		for _, u := range p.TotalRank {
-
 			v := Contestant{
 				Contestname:          contestName,
 				Username:             u.UserSlug,
@@ -48,7 +47,7 @@ func InsertIntoDB(contest *model.Contest) {
 			}
 
 			if !isContestantExisted(db, v) {
-				db.Create(&u)
+				db.Create(&v)
 			} else {
 				db.Where("contestname=?", contestName).Where("username=?", v.Username).Updates(&v)
 			}

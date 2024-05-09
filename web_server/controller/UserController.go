@@ -19,7 +19,7 @@ func isEmailExisted(db *gorm.DB, email string) bool {
 }
 func isFollowExisted(db *gorm.DB, uname string, lcusername string) bool {
 	var fl dao2.Following
-	db.Where("username=?", uname).Where("lcusername=?", lcusername).First(&fl)
+	db.Where("email=?", uname).Where("lcusername=?", lcusername).First(&fl)
 	return fl.ID != 0
 }
 func getUserByEmail(db *gorm.DB, email string) dao2.User {

@@ -39,7 +39,7 @@ func Getpage(c *gin.Context) {
 		common.Fail(c, nil, "no such contest")
 		return
 	}
-	db.Where("rank>?", (p-1)*25).Where("rank<=?", p*25).Where("contestname=?", contestname).Find(&con)
+	db.Where("`rank`>?", (p-1)*25).Where("`rank`<=?", p*25).Where("contestname=?", contestname).Find(&con)
 	if con == nil {
 		common.Fail(c, nil, "page empty")
 		return

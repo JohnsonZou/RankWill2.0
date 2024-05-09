@@ -24,11 +24,9 @@ func FetchContest(ctx context.Context, contest *model.Contest) error {
 		return getContestantNumErr
 	}
 	contest.PageNum = (contest.ContestantNum-1)/25 + 1
-
 	if util.IsTestMode(ctx) {
 		contest.PageNum = testPageNum
 	}
-
 	for i := 1; i <= contest.PageNum; i++ {
 		ch <- i
 	}

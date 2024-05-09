@@ -66,7 +66,9 @@ func GetFollowing(c *gin.Context) {
 	db.Where("email=?", email).Find(&fol)
 	for _, v := range fol {
 		curname := v.Lcusername
-		db.Where("contestname=?", contestname).Where("username=?", curname).Find(&res)
+		var tmp dao2.Contestant
+		db.Where("contestname=?", contestname).Where("username=?", curname).Find(&tmp)
+		res = append(res, tmp)
 	}
 
 	common.Success(c, gin.H{"result": dto.ToQueryPageDto(res)}, "Successfully get following")

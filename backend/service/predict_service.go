@@ -39,7 +39,7 @@ func Predict(ctx context.Context, contest *model.Contest) error {
 	}
 	ERSlice := calcPossibleExpectedRankForAllRatings(ratings)
 	for _, p := range contest.RankPages {
-		for _, u := range p.TotalRank {
+		for i, u := range p.TotalRank {
 
 			pos := math.Ceil(u.Rating) / predictRatingDeviationDelta
 
@@ -56,9 +56,8 @@ func Predict(ctx context.Context, contest *model.Contest) error {
 				}
 			}
 
-			log.Println("[predicted] ", u.Rating, float64(l)*predictRatingDeviationDelta, ERSlice[int(pos)], u.Rank)
-			u.PredictedRating = u.Rating + (float64(l)*predictRatingDeviationDelta-u.Rating)*lcFixDelta(&u)
-			u.AttendedContestsCount++
+			p.TotalRank[i].PredictedRating = u.Rating + (float64(l)*predictRatingDeviationDelta-u.Rating)*lcFixDelta(&u)
+			p.TotalRank[i].AttendedContestsCount++
 
 			err := myredis.SetUserPredictedRatingInfo(ctx, &u)
 			if err != nil {

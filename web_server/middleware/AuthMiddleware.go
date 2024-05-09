@@ -14,6 +14,7 @@ func AuthMiddleware() gin.HandlerFunc {
 		tokenString := c.GetHeader("Authorization")
 		log.Println(tokenString)
 		if tokenString == "" || !strings.HasPrefix(tokenString, "Bearer") {
+			log.Println(tokenString)
 			common.Response(c, http.StatusUnauthorized, 401, nil, "Unauthorized token")
 			c.Abort()
 			return
@@ -21,6 +22,7 @@ func AuthMiddleware() gin.HandlerFunc {
 		tokenString = tokenString[7:]
 		token, claims, err := ParseToken(tokenString)
 		if err != nil || !token.Valid {
+			log.Println(err)
 			common.Response(c, http.StatusUnauthorized, 401, nil, "Unauthorized token")
 			c.Abort()
 			return
@@ -30,6 +32,7 @@ func AuthMiddleware() gin.HandlerFunc {
 		var user dao2.User
 		DB.First(&user, userId)
 		if user.ID == 0 {
+			log.Println(user.ID)
 			common.Response(c, http.StatusUnauthorized, 401, nil, "Unauthorized token")
 			c.Abort()
 			return

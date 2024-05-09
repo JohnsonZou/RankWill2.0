@@ -5,6 +5,7 @@ import (
 	_ "github.com/dgrijalva/jwt-go"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/spf13/viper"
+	"log"
 	"os"
 	"time"
 )
@@ -23,6 +24,7 @@ func GetJWTKey() string {
 	if err := viper.ReadInConfig(); err != nil {
 		return ""
 	}
+	log.Println(viper.GetString("jwt_key"))
 	return viper.GetString("jwt_key")
 }
 
@@ -38,7 +40,7 @@ func ReleaseToken(user dao.User) (string, error) {
 		},
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, err := token.SignedString(GetJWTKey())
+	tokenString, err := token.SignedString([]byte(GetJWTKey()))
 	if err != nil {
 		return "", err
 	}
@@ -47,7 +49,7 @@ func ReleaseToken(user dao.User) (string, error) {
 func ParseToken(tokenString string) (*jwt.Token, *Claims, error) {
 	claims := &Claims{}
 	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (i interface{}, err error) {
-		return GetJWTKey(), nil
+		return []byte(GetJWTKey()), nil
 	})
 	return token, claims, err
 }
