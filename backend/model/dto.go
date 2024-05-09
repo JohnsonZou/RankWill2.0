@@ -44,6 +44,7 @@ type UserRankInfo struct {
 	AttendedContestsCount int     `json:"attendedContestsCount"`
 	Rating                float64 `json:"rating"`
 	PredictedRating       float64 `json:"predict_rating"`
+	ContestName           string  `json:"contest_name"`
 }
 
 type MQMessage struct {

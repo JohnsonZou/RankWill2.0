@@ -63,36 +63,63 @@ func FetchContest(ctx context.Context, contest *model.Contest) error {
 	return HandlePages(ctx, contest)
 }
 func HandlePages(ctx context.Context, contest *model.Contest) error {
-	totalQueue := util.Queue{}
-	reqQueue := make(chan model.UserRankInfo, 100)
+	CNQueue := util.Queue{}
+	USQueue := util.Queue{}
 	for _, p := range contest.RankPages {
-		for _, u := range p.TotalRank {
-			//bugfix
-			totalQueue.Push(u)
+		for i := range p.TotalRank {
+			p.TotalRank[i].ContestName = contest.TitleSlug
+			if p.TotalRank[i].DataRegion == "CN" {
+				CNQueue.Push(p.TotalRank[i])
+			} else {
+				USQueue.Push(p.TotalRank[i])
+			}
 		}
 	}
+	//during the multi-goroutine request
+	//delay mainly due to the difference of data region
+	//the time sonsumption of a round of multi-goroutine request
+	//mainly depends on the slowest request in a set of requests
+	//then, reqs for different data region should be divided
+	HandleTotalQueue(ctx, &CNQueue)
+	HandleTotalQueue(ctx, &USQueue)
+	return nil
+}
+
+func HandleTotalQueue(ctx context.Context, queue *util.Queue) {
+	reqQueue := make(chan *model.UserRankInfo, 100)
 	waitTime := 0
-	for !totalQueue.Empty() {
+	dynamicRoutineNum := 1
+	for !queue.Empty() {
 		if waitTime > 0 {
 			log.Println("[Sleep] for ", waitTime, " seconds.")
+			time.Sleep(time.Duration(waitTime) * time.Second)
+			dynamicRoutineNum = 1
+		} else {
+			//dynamicRoutineNum may exceed maxGoroutineNum
+			//the 'max' is just a kinda limitation
+			if dynamicRoutineNum < maxGoroutineNum {
+				dynamicRoutineNum *= 2
+			} else {
+				dynamicRoutineNum++
+			}
 		}
-		time.Sleep(time.Duration(waitTime) * time.Second)
 		waitTime = 0
 		wg := sync.WaitGroup{}
-		for i := 0; i < maxGoroutineNum; i++ {
-			if totalQueue.Empty() {
+		for i := 0; i < dynamicRoutineNum; i++ {
+			if queue.Empty() {
 				break
 			}
-			reqQueue <- totalQueue.Pop().(model.UserRankInfo)
+			reqQueue <- queue.Pop().(*model.UserRankInfo)
 		}
-		for i := 0; i < maxGoroutineNum; i++ {
+		for i := 0; i < dynamicRoutineNum; i++ {
 			wg.Add(1)
 			go func() {
 				select {
 				case u := <-reqQueue:
-					err := handleUserRankInfo(ctx, &u)
+					err := handleUserRankInfo(ctx, u)
 					if err != nil {
-						totalQueue.Push(u)
+						log.Printf("[Error] Handle user rank info, err: %+v\n", err)
+						queue.Push(u)
 						waitTime++
 					}
 				default:
@@ -103,23 +130,27 @@ func HandlePages(ctx context.Context, contest *model.Contest) error {
 		}
 		wg.Wait()
 	}
-	return nil
 }
 
 func handleUserRankInfo(ctx context.Context, user *model.UserRankInfo) error {
+	//fetched
 	err := myredis.GetUserFetchRatingInfo(ctx, user)
 	if err != redis.Nil {
 		log.Println("[Fetched]", user.UserSlug)
 		return nil
 	}
-	var uLast model.UserRankInfo
-	uLast = *user
+
+	//for the weekly-contest after biweekly-contest
+	//rating data should inherit the predicted result of biweekly-contest
+	var uLast model.UserRankInfo = *user
 	uLast.ContestId -= 1
 	err = myredis.GetUserPredictedRatingInfo(ctx, &uLast)
 	if err == nil {
+		//inherit the predicted result of biweekly-contest
 		user.AttendedContestsCount = uLast.AttendedContestsCount
 		user.Rating = uLast.Rating
 	} else if err != redis.Nil {
+		//unexpected err
 		return err
 	} else {
 		err = QueryUserCurrentRating(ctx, user)
@@ -149,37 +180,45 @@ func FindAndRegisterContest(ctx context.Context) error {
 		}
 		if exist <= 0 {
 			rdb.Set(ContestKey, "key", 0)
-
-			var gap int64 = 1080
-			var delay int64 = 30
-
-			for t := c.StartTime + delay + gap; ; t += gap {
-
-				lastTime := t >= c.StartTime+delay+c.Duration
-
-				var msgByte []byte
-				if !lastTime {
-					msgByte, _ = json.Marshal(model.MQMessage{
-						ContestName:   c.TitleSlug,
-						PredictNeeded: false,
-					})
-				} else {
-					msgByte, _ = json.Marshal(model.MQMessage{
-						ContestName:   c.TitleSlug,
-						PredictNeeded: true,
-					})
-				}
-				err = mq.SendMsgToDelayQueueByUnixTime(ctx, string(msgByte), t)
-				if err != nil {
-					log.Printf("[Redis][FindAndRegisterContest] send msg to mq fail!!!,err :%v", err.Error())
-				}
-				if lastTime {
-					break
-				}
-			}
+			AddContestIntoMQ(ctx, c)
 		} else {
 			log.Println("[Redis][FindAndRegisterContest] contest has been send to mq before, ", ContestKey)
 		}
 	}
 	return err
+}
+
+func AddContestIntoMQ(ctx context.Context, c *model.Contest) {
+
+	//gap is the actual time gap between each total query for the dashboard
+	var gap int64 = 1080
+	var delay int64 = 30
+
+	for t := c.StartTime + delay + gap; ; t += gap {
+
+		//the last query should end with predict service
+		lastTime := t >= c.StartTime+delay+c.Duration
+
+		var msgByte []byte
+		if !lastTime {
+			msgByte, _ = json.Marshal(model.MQMessage{
+				ContestName:   c.TitleSlug,
+				PredictNeeded: false,
+			})
+		} else {
+			msgByte, _ = json.Marshal(model.MQMessage{
+				ContestName:   c.TitleSlug,
+				PredictNeeded: true,
+			})
+		}
+		err := mq.SendMsgToDelayQueueByUnixTime(ctx, string(msgByte), t)
+		if err != nil {
+			log.Printf("[Redis][FindAndRegisterContest] send msg to mq fail!!!,err :%v", err.Error())
+		}
+
+		//important!!!
+		if lastTime {
+			break
+		}
+	}
 }

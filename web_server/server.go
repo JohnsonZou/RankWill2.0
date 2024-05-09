@@ -3,10 +3,11 @@ package web_server
 import (
 	"RankWillServer/web_server/controller"
 	"RankWillServer/web_server/middleware"
+	"os"
+
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
 	_ "gorm.io/driver/mysql"
-	"os"
 )
 
 func CollectRoute(r *gin.Engine) *gin.Engine {
@@ -34,8 +35,11 @@ func GinRun() {
 		panic(err)
 	}
 	port := viper.GetString("port")
+
 	r := gin.Default()
+	r.Use(middleware.RedisMiddleware())
 	r.Use(middleware.CORS())
 	r = CollectRoute(r)
-	panic(r.Run(":" + port)) // 监听并在 0.0.0.0:8080 上启动服务
+
+	panic(r.Run(":" + port))
 }

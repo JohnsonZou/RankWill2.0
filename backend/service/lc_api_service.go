@@ -145,7 +145,7 @@ func CNQueryUpComingContest(ctx context.Context) ([]*model.Contest, error) {
 	}
 	var res *http.Response
 	result := &model.LCCNQueryUpComingContest{}
-	queryErr := util.Retry(100, 300*time.Millisecond, func() error {
+	queryErr := util.Retry(100, 3000*time.Millisecond, func() error {
 		var err error
 		res, err = client.Do(req)
 		if res == nil {

@@ -19,11 +19,11 @@ func (q *Queue) Empty() bool {
 
 // 出队
 func (q *Queue) Pop() interface{} {
-	q.mu.Lock()
-	defer q.mu.Unlock()
 	if len(q.items) == 0 {
 		return nil
 	}
+	q.mu.Lock()
+	defer q.mu.Unlock()
 	item := q.items[0]
 	q.items = q.items[1:]
 	return item

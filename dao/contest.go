@@ -2,9 +2,10 @@ package dao
 
 import (
 	"RankWillServer/backend/model"
-	"gorm.io/gorm"
 	"log"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 type Contest struct {
@@ -28,7 +29,7 @@ func isContestExisted(contestName string) bool {
 	db.Where("title_slug=?", contestName).First(&a)
 	return a.ID != 0
 }
-func InsertIntoDB(contest *model.Contest) {
+func InsertContestIntoDB(contest *model.Contest) {
 	log.Println("Start to inser into DB")
 	db := GetDB()
 	contestName := contest.TitleSlug

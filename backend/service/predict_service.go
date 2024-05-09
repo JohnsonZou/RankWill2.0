@@ -5,9 +5,10 @@ import (
 	"RankWillServer/dao"
 	myredis "RankWillServer/redis"
 	"context"
-	"github.com/go-redis/redis"
 	"log"
 	"math"
+
+	"github.com/go-redis/redis"
 )
 
 func calcPossibleExpectedRankForAllRatings(ratings []float64) []float64 {
@@ -66,6 +67,6 @@ func Predict(ctx context.Context, contest *model.Contest) error {
 			}
 		}
 	}
-	dao.InsertIntoDB(contest)
+	dao.InsertContestIntoDB(contest)
 	return nil
 }

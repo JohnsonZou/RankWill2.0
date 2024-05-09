@@ -2,11 +2,13 @@ package controller
 
 import (
 	dao2 "RankWillServer/dao"
+	"RankWillServer/redis"
 	"RankWillServer/web_server/common"
 	"RankWillServer/web_server/dto"
-	"github.com/gin-gonic/gin"
 	"sort"
 	"strconv"
+
+	"github.com/gin-gonic/gin"
 )
 
 type allContestant []dao2.Contestant
@@ -31,19 +33,36 @@ func Getpage(c *gin.Context) {
 	var con []dao2.Contestant
 	p, err := strconv.Atoi(page)
 	if err != nil {
-		panic(err)
+		common.Fail(c, gin.H{}, "invalid page data")
 	}
+
 	var curContest dao2.Contest
 	db.Where("title_slug=?", contestname).First(&curContest)
 	if curContest.ID == 0 {
 		common.Fail(c, nil, "no such contest")
 		return
 	}
-	db.Where("`rank`>?", (p-1)*25).Where("`rank`<=?", p*25).Where("contestname=?", contestname).Find(&con)
-	if con == nil {
-		common.Fail(c, nil, "page empty")
-		return
+
+	res, err := redis.GetUserByRank(c.Request.Context(), contestname, (p-1)*25+1, p*25)
+	if err == nil && res != nil {
+		for _, v := range res {
+			con = append(con, dao2.Contestant{
+				Contestname:     v.ContestName,
+				Username:        v.Username,
+				Rank:            v.Rank,
+				Rating:          v.Rating,
+				PredictedRating: v.PredictedRating,
+				DataRegion:      v.DataRegion,
+			})
+		}
+	} else {
+		db.Where("`rank`>?", (p-1)*25).Where("`rank`<=?", p*25).Where("contestname=?", contestname).Find(&con)
+		if con == nil {
+			common.Fail(c, nil, "page empty")
+			return
+		}
 	}
+
 	sort.Sort(allContestant(con))
 	common.Success(c, gin.H{"result": dto.ToQueryPageDto(con), "contestantnum": curContest.ContestantNum}, "Successfully query page")
 }
@@ -56,6 +75,7 @@ func Getbyname(c *gin.Context) {
 		return
 	}
 	var con dao2.Contestant
+
 	db.Where("username=?", contestantname).Where("contestname=?", contestname).First(&con)
 	if con.ID == 0 {
 		common.Fail(c, gin.H{}, "no such user")
