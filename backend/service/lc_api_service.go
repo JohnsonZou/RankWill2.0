@@ -61,15 +61,15 @@ func QueryUserCurrentRating(ctx context.Context, user *model.UserRankInfo) (err 
 	defer func() {
 		util.CloseResponseBody(res)
 	}()
+	if err != nil {
+		log.Printf("%v\n", err.Error())
+		return
+	}
 
 	if res.StatusCode != 200 {
 		log.Printf("[!]Encounter http %d err code\n", res.StatusCode)
 		log.Println(util.ReadCloserToString(res.Body))
 		err = errStatusCodeNot200
-		return
-	}
-	if err != nil {
-		log.Printf("%v\n", err.Error())
 		return
 	}
 	if err = json.NewDecoder(res.Body).Decode(&queryResult); err != nil {

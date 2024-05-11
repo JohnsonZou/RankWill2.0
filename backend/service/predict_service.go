@@ -28,6 +28,7 @@ func lcFixDelta(user *model.UserRankInfo) float64 {
 }
 
 func Predict(ctx context.Context, contest *model.Contest) error {
+	log.Println("start to predict")
 	var ratings []float64
 	for _, p := range contest.RankPages {
 		for i := range p.TotalRank {
@@ -60,7 +61,7 @@ func Predict(ctx context.Context, contest *model.Contest) error {
 			p.TotalRank[i].PredictedRating = u.Rating + (float64(l)*predictRatingDeviationDelta-u.Rating)*lcFixDelta(&u)
 			p.TotalRank[i].AttendedContestsCount++
 
-			err := myredis.SetUserPredictedRatingInfo(ctx, &u)
+			err := myredis.SetUserPredictedRatingInfo(ctx, &p.TotalRank[i])
 			if err != nil {
 				//log
 				log.Println("[Error][Predict]", u.UserSlug)

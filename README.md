@@ -2,6 +2,7 @@
 - golang 1.22+
 - mysql
 - redis
+- erlang
 - rabbitmq
 - rabbitmq delay exchange(depands on your rabbit mq version)
 # and prepare for ./config:
@@ -23,5 +24,5 @@
     - password
     - charset
 # and ...
-go mod tidy
-go run .
+- go mod tidy
+- go run .

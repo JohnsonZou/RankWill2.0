@@ -69,9 +69,9 @@ func HandlePages(ctx context.Context, contest *model.Contest) error {
 		for i := range p.TotalRank {
 			p.TotalRank[i].ContestName = contest.TitleSlug
 			if p.TotalRank[i].DataRegion == "CN" {
-				CNQueue.Push(p.TotalRank[i])
+				CNQueue.Push(&p.TotalRank[i])
 			} else {
-				USQueue.Push(p.TotalRank[i])
+				USQueue.Push(&p.TotalRank[i])
 			}
 		}
 	}
@@ -99,7 +99,7 @@ func HandleTotalQueue(ctx context.Context, queue *util.Queue) {
 			//the 'max' is just a kinda limitation
 			if dynamicRoutineNum < maxGoroutineNum {
 				dynamicRoutineNum *= 2
-			} else {
+			} else if dynamicRoutineNum < 2*maxGoroutineNum {
 				dynamicRoutineNum++
 			}
 		}
